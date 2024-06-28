@@ -1,0 +1,115 @@
+!pip install ipywidgets plotly tensorflow
+
+import tensorflow as tf
+import numpy as np
+import pandas as pd
+import ipywidgets as widgets
+from IPython.display import display, HTML
+import plotly.graph_objs as go
+from sklearn.preprocessing import StandardScaler
+
+# Updated sample data
+data = {
+    'activity': ['Work', 'Study', 'Exercise', 'Chores', 'Leisure', 'Reading', 'Gaming', 'Cooking'],
+    'time_spent': [8, 5, 1, 2, 4, 7, 6, 3],  # updated hours per day
+    'procrastination_instances': [2, 5, 1, 3, 6, 2, 4, 3],  # instances per day
+    'cluster': [0, 1, 0, 1, 2, 0, 1, 2]  # dummy clusters
+}
+
+# Create a DataFrame
+df = pd.DataFrame(data)
+
+# Preprocessing
+scaler = StandardScaler()
+X = scaler.fit_transform(df[['time_spent', 'procrastination_instances']])
+y = np.array(df['cluster'])
+
+# Create and train a simple neural network model
+model = tf.keras.Sequential([
+    tf.keras.layers.InputLayer(input_shape=(2,)),
+    tf.keras.layers.Dense(10, activation='relu'),
+    tf.keras.layers.Dense(3, activation='softmax')
+])
+
+model.compile(optimizer='adam', loss='sparse_categorical_crossentropy', metrics=['accuracy'])
+model.fit(X, y, epochs=50, verbose=0)
+
+# Personalized strategies based on clusters
+strategies = {
+    0: "You tend to procrastinate less when engaging in high-focus activities. Try scheduling important tasks during peak focus hours.",
+    1: "You have moderate procrastination levels. Consider using techniques like the Pomodoro method to maintain steady productivity.",
+    2: "Procrastination is more frequent in your schedule. Identify specific distractions and create a plan to minimize them, such as setting strict deadlines and rewards."
+}
+
+# Function to display the welcome message
+def display_welcome():
+    welcome_message = """
+    <div style="text-align: center;">
+        <h1>Welcome to Your Personalized Dashboard</h1>
+        <p>This dashboard will help you analyze your behavioral patterns and combat procrastination.</p>
+    </div>
+    """
+    display(HTML(welcome_message))
+
+# Function to display a sample chart
+def display_chart():
+    fig = go.Figure(data=[
+        go.Bar(name='Time Spent', x=df['activity'], y=df['time_spent'])
+    ])
+
+    fig.update_layout(title='Time Spent on Different Activities',
+                      xaxis_title='Activity',
+                      yaxis_title='Time Spent (hours)')
+    
+    fig.show()
+
+# Function to recommend strategy based on user input
+def recommend_strategy(time_spent, procrastination_instances):
+    new_data = scaler.transform([[time_spent, procrastination_instances]])
+    prediction = model.predict(new_data)
+    cluster = np.argmax(prediction, axis=1)[0]
+    return strategies[cluster]
+
+# Function to display the input form
+def display_input_form():
+    activity = widgets.Text(
+        value='',
+        placeholder='Enter activity name',
+        description='Activity:',
+        disabled=False
+    )
+    
+    time_spent = widgets.FloatText(
+        value=0.0,
+        placeholder='Enter time spent in hours',
+        description='Time Spent:',
+        disabled=False
+    )
+    
+    procrastination_instances = widgets.IntText(
+        value=0,
+        placeholder='Enter number of procrastination instances',
+        description='Procrastination Instances:',
+        disabled=False
+    )
+    
+    display(activity, time_spent, procrastination_instances)
+    
+    def on_button_click(b):
+        time_spent_value = time_spent.value
+        procrastination_instances_value = procrastination_instances.value
+        strategy = recommend_strategy(time_spent_value, procrastination_instances_value)
+        print(f"Recommended strategy: {strategy}")
+    
+    button = widgets.Button(description="Submit")
+    button.on_click(on_button_click)
+    display(button)
+
+# Display the welcome message
+display_welcome()
+
+# Display the chart
+display_chart()
+
+# Display the input form
+display_input_form()
